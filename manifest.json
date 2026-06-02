@@ -1,0 +1,25 @@
+{
+  "name": "OCD Check-in",
+  "short_name": "OCD Check-in",
+  "description": "Track your OCD state of mind — anxiety, intrusive thoughts, compulsions, and avoidance.",
+  "start_url": "/index.html",
+  "display": "standalone",
+  "orientation": "portrait",
+  "background_color": "#534AB7",
+  "theme_color": "#534AB7",
+  "icons": [
+    { "src": "icons/icon-20.png",   "sizes": "20x20",   "type": "image/png" },
+    { "src": "icons/icon-29.png",   "sizes": "29x29",   "type": "image/png" },
+    { "src": "icons/icon-40.png",   "sizes": "40x40",   "type": "image/png" },
+    { "src": "icons/icon-58.png",   "sizes": "58x58",   "type": "image/png" },
+    { "src": "icons/icon-60.png",   "sizes": "60x60",   "type": "image/png" },
+    { "src": "icons/icon-76.png",   "sizes": "76x76",   "type": "image/png" },
+    { "src": "icons/icon-80.png",   "sizes": "80x80",   "type": "image/png" },
+    { "src": "icons/icon-87.png",   "sizes": "87x87",   "type": "image/png" },
+    { "src": "icons/icon-120.png",  "sizes": "120x120", "type": "image/png" },
+    { "src": "icons/icon-152.png",  "sizes": "152x152", "type": "image/png" },
+    { "src": "icons/icon-167.png",  "sizes": "167x167", "type": "image/png" },
+    { "src": "icons/icon-180.png",  "sizes": "180x180", "type": "image/png" },
+    { "src": "icons/icon-1024.png", "sizes": "1024x1024", "type": "image/png", "purpose": "any maskable" }
+  ]
+}

@@ -1,0 +1,492 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0, viewport-fit=cover">
+<title>OCD Check-in</title>
+
+<!-- PWA / iOS home screen -->
+<link rel="manifest" href="manifest.json">
+<meta name="mobile-web-app-capable" content="yes">
+<meta name="apple-mobile-web-app-capable" content="yes">
+<meta name="apple-mobile-web-app-status-bar-style" content="black-translucent">
+<meta name="apple-mobile-web-app-title" content="OCD Check-in">
+<meta name="theme-color" content="#534AB7">
+
+<!-- Apple touch icons -->
+<link rel="apple-touch-icon" href="icons/icon-180.png">
+<link rel="apple-touch-icon" sizes="167x167" href="icons/icon-167.png">
+<link rel="apple-touch-icon" sizes="152x152" href="icons/icon-152.png">
+<link rel="apple-touch-icon" sizes="120x120" href="icons/icon-120.png">
+
+<style>
+  * { box-sizing: border-box; margin: 0; padding: 0; }
+
+  /* Safe area insets for notch/Dynamic Island */
+  body {
+    font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', sans-serif;
+    background: #f5f5f3;
+    color: #1a1a18;
+    min-height: 100vh;
+    /* pad top for status bar when running standalone */
+    padding: env(safe-area-inset-top, 0px) env(safe-area-inset-right, 0px) env(safe-area-inset-bottom, 20px) env(safe-area-inset-left, 0px);
+  }
+
+  .app { max-width: 640px; margin: 0 auto; padding: 1.5rem 1rem 2rem; }
+  h1 { font-size: 20px; font-weight: 500; margin-bottom: 1.5rem; color: #1a1a18; }
+  .section { background: #fff; border: 0.5px solid rgba(0,0,0,0.12); border-radius: 12px; padding: 1.25rem; margin-bottom: 1rem; }
+  .section-title { font-size: 12px; font-weight: 500; color: #888780; text-transform: uppercase; letter-spacing: 0.05em; margin: 0 0 1rem; }
+  .slider-row { display: flex; align-items: center; gap: 10px; margin-bottom: 0.9rem; }
+  .slider-row:last-of-type { margin-bottom: 0; }
+  .slider-label { font-size: 14px; color: #1a1a18; min-width: 150px; }
+  .slider-val { font-size: 14px; font-weight: 500; min-width: 22px; text-align: right; }
+  input[type=range] { flex: 1; accent-color: #534AB7; min-width: 0; }
+  .tag-grid { display: flex; flex-wrap: wrap; gap: 8px; }
+  .tag { padding: 6px 14px; border-radius: 20px; border: 0.5px solid rgba(0,0,0,0.2); font-size: 13px; cursor: pointer; background: #fff; color: #1a1a18; transition: all 0.15s; user-select: none; -webkit-user-select: none; -webkit-tap-highlight-color: transparent; }
+  .tag.active { background: #EEEDFE; border-color: #7F77DD; color: #3C3489; }
+  .submit-btn { width: 100%; padding: 14px; border-radius: 12px; border: none; background: #534AB7; color: #fff; font-size: 16px; font-weight: 500; cursor: pointer; margin-top: 0.5rem; -webkit-tap-highlight-color: transparent; }
+  .submit-btn:active { opacity: 0.85; }
+  .metric-grid { display: grid; grid-template-columns: repeat(4, 1fr); gap: 10px; margin-bottom: 1rem; }
+  .metric { background: #f5f5f3; border-radius: 8px; padding: 0.75rem 1rem; }
+  .metric-label { font-size: 12px; color: #888780; margin-bottom: 4px; }
+  .metric-val { font-size: 22px; font-weight: 500; }
+  .log-entry { border-bottom: 0.5px solid rgba(0,0,0,0.1); padding: 10px 0; font-size: 13px; }
+  .log-entry:last-child { border-bottom: none; }
+  .log-time { color: #888780; margin-bottom: 4px; }
+  .log-tags { display: flex; flex-wrap: wrap; gap: 4px; margin-top: 4px; }
+  .log-tag { background: #EEEDFE; color: #3C3489; border-radius: 10px; padding: 2px 8px; font-size: 11px; }
+  .no-log { color: #888780; font-size: 13px; text-align: center; padding: 1.5rem 0; }
+  textarea { width: 100%; min-height: 70px; border-radius: 8px; border: 0.5px solid rgba(0,0,0,0.2); background: #fff; color: #1a1a18; font-size: 13px; padding: 8px 10px; resize: vertical; font-family: inherit; }
+  .tabs { display: flex; gap: 8px; margin-bottom: 1rem; }
+  .tab { padding: 7px 18px; border-radius: 20px; border: 0.5px solid rgba(0,0,0,0.2); font-size: 14px; cursor: pointer; background: #fff; color: #888780; -webkit-tap-highlight-color: transparent; }
+  .tab.active { background: #EEEDFE; border-color: #7F77DD; color: #3C3489; font-weight: 500; }
+  .log-scroll { max-height: 420px; overflow-y: auto; -webkit-overflow-scrolling: touch; }
+  .legend { display: flex; gap: 16px; margin-bottom: 8px; font-size: 12px; color: #888780; }
+  .legend span { display: flex; align-items: center; gap: 4px; }
+  .legend-dot { width: 10px; height: 10px; border-radius: 2px; }
+
+  @keyframes pulse { 0%,100%{box-shadow:0 0 0 0 rgba(83,74,183,0.35)} 50%{box-shadow:0 0 0 6px rgba(83,74,183,0)} }
+  .mic-sm { width: 32px; height: 32px; border-radius: 50%; border: 0.5px solid rgba(0,0,0,0.18); background: #fff; cursor: pointer; display: flex; align-items: center; justify-content: center; flex-shrink: 0; transition: background 0.15s; -webkit-tap-highlight-color: transparent; }
+  .mic-sm:active { background: #f0effd; }
+  .mic-sm.listening { background: #EEEDFE; border-color: #7F77DD; animation: pulse 1.1s infinite; }
+  .mic-sm svg { width: 15px; height: 15px; color: #888780; }
+  .mic-sm.listening svg { color: #534AB7; }
+  .mic-hint { font-size: 11px; color: #888780; margin-top: 6px; min-height: 15px; font-style: italic; }
+  .mic-hint.active { color: #534AB7; }
+  .tag-row { display: flex; align-items: flex-start; gap: 10px; }
+  .tag-row .tag-grid { flex: 1; }
+  .notes-row { position: relative; }
+  .notes-mic { position: absolute; top: 8px; right: 8px; width: 28px; height: 28px; border-radius: 50%; border: 0.5px solid rgba(0,0,0,0.18); background: #fff; cursor: pointer; display: flex; align-items: center; justify-content: center; z-index: 1; -webkit-tap-highlight-color: transparent; }
+  .notes-mic.listening { background: #EEEDFE; border-color: #7F77DD; animation: pulse 1.1s infinite; }
+  .notes-mic svg { width: 13px; height: 13px; color: #888780; }
+  .notes-mic.listening svg { color: #534AB7; }
+  .notes-row textarea { padding-right: 44px; }
+
+  @keyframes flash { 0%{background:#EEEDFE} 100%{background:inherit} }
+  .highlight-flash { animation: flash 0.5s ease-out; }
+
+  @media (prefers-color-scheme: dark) {
+    body { background: #1c1c1a; color: #e8e6df; }
+    h1 { color: #e8e6df; }
+    .section { background: #2c2c2a; border-color: rgba(255,255,255,0.1); }
+    .section-title { color: #888780; }
+    .slider-label { color: #e8e6df; }
+    .tag { background: #2c2c2a; border-color: rgba(255,255,255,0.15); color: #e8e6df; }
+    .tag.active { background: #26215C; border-color: #7F77DD; color: #CECBF6; }
+    .submit-btn { background: #534AB7; }
+    .metric { background: #383836; }
+    .metric-val { color: #e8e6df; }
+    .log-entry { border-color: rgba(255,255,255,0.08); }
+    .log-time { color: #888780; }
+    .log-tag { background: #26215C; color: #CECBF6; }
+    .no-log { color: #888780; }
+    textarea { background: #2c2c2a; border-color: rgba(255,255,255,0.15); color: #e8e6df; }
+    .tab { background: #2c2c2a; border-color: rgba(255,255,255,0.15); color: #888780; }
+    .tab.active { background: #26215C; border-color: #7F77DD; color: #CECBF6; }
+    .mic-sm { background: #2c2c2a; border-color: rgba(255,255,255,0.15); }
+    .mic-sm.listening { background: #26215C; }
+    .notes-mic { background: #2c2c2a; border-color: rgba(255,255,255,0.15); }
+    .notes-mic.listening { background: #26215C; }
+    @keyframes flash { 0%{background:#26215C} 100%{background:inherit} }
+  }
+</style>
+</head>
+<body>
+<div class="app">
+  <h1>OCD check-in</h1>
+
+  <div class="tabs">
+    <div class="tab active" onclick="showTab('checkin')">Check in</div>
+    <div class="tab" onclick="showTab('history')">History</div>
+    <div class="tab" onclick="showTab('trends')">Trends</div>
+  </div>
+
+  <div id="tab-checkin">
+    <div class="section">
+      <p class="section-title">Anxiety level</p>
+      <div class="slider-row">
+        <span class="slider-label">Overall distress</span>
+        <input type="range" min="0" max="10" value="5" step="1" id="anxiety" oninput="document.getElementById('anxiety-val').textContent=this.value">
+        <span class="slider-val" id="anxiety-val">5</span>
+        <button class="mic-sm" id="mic-anxiety" onclick="startFieldVoice('anxiety','anxiety-val',10,'anxiety-hint','mic-anxiety')" aria-label="Voice input">
+          <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"><rect x="9" y="2" width="6" height="12" rx="3"/><path d="M5 10a7 7 0 0 0 14 0"/><line x1="12" y1="19" x2="12" y2="22"/><line x1="8" y1="22" x2="16" y2="22"/></svg>
+        </button>
+      </div>
+      <div class="mic-hint" id="anxiety-hint"></div>
+    </div>
+
+    <div class="section">
+      <p class="section-title">Intrusive thoughts</p>
+      <div class="slider-row">
+        <span class="slider-label">Frequency</span>
+        <input type="range" min="0" max="10" value="3" step="1" id="thought-freq" oninput="document.getElementById('tf-val').textContent=this.value">
+        <span class="slider-val" id="tf-val">3</span>
+        <button class="mic-sm" id="mic-tf" onclick="startFieldVoice('thought-freq','tf-val',10,'tf-hint','mic-tf')" aria-label="Voice input">
+          <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"><rect x="9" y="2" width="6" height="12" rx="3"/><path d="M5 10a7 7 0 0 0 14 0"/><line x1="12" y1="19" x2="12" y2="22"/><line x1="8" y1="22" x2="16" y2="22"/></svg>
+        </button>
+      </div>
+      <div class="mic-hint" id="tf-hint"></div>
+      <div class="slider-row" style="margin-top:0.75rem">
+        <span class="slider-label">Distress from thoughts</span>
+        <input type="range" min="0" max="10" value="3" step="1" id="thought-dist" oninput="document.getElementById('td-val').textContent=this.value">
+        <span class="slider-val" id="td-val">3</span>
+        <button class="mic-sm" id="mic-td" onclick="startFieldVoice('thought-dist','td-val',10,'td-hint','mic-td')" aria-label="Voice input">
+          <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"><rect x="9" y="2" width="6" height="12" rx="3"/><path d="M5 10a7 7 0 0 0 14 0"/><line x1="12" y1="19" x2="12" y2="22"/><line x1="8" y1="22" x2="16" y2="22"/></svg>
+        </button>
+      </div>
+      <div class="mic-hint" id="td-hint"></div>
+    </div>
+
+    <div class="section">
+      <p class="section-title">Compulsions / rituals</p>
+      <div class="slider-row">
+        <span class="slider-label">Time spent (hrs)</span>
+        <input type="range" min="0" max="8" value="1" step="1" id="comp-time" oninput="document.getElementById('ct-val').textContent=this.value">
+        <span class="slider-val" id="ct-val">1</span>
+        <button class="mic-sm" id="mic-ct" onclick="startFieldVoice('comp-time','ct-val',8,'ct-hint','mic-ct')" aria-label="Voice input">
+          <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"><rect x="9" y="2" width="6" height="12" rx="3"/><path d="M5 10a7 7 0 0 0 14 0"/><line x1="12" y1="19" x2="12" y2="22"/><line x1="8" y1="22" x2="16" y2="22"/></svg>
+        </button>
+      </div>
+      <div class="mic-hint" id="ct-hint"></div>
+      <div class="tag-row" style="margin-top:0.9rem">
+        <div class="tag-grid" id="comp-tags">
+          <div class="tag" onclick="toggleTag(this)">Checking</div>
+          <div class="tag" onclick="toggleTag(this)">Counting</div>
+          <div class="tag" onclick="toggleTag(this)">Cleaning</div>
+          <div class="tag" onclick="toggleTag(this)">Ordering</div>
+          <div class="tag" onclick="toggleTag(this)">Reassurance-seeking</div>
+          <div class="tag" onclick="toggleTag(this)">Mental reviewing</div>
+          <div class="tag" onclick="toggleTag(this)">Other</div>
+        </div>
+        <button class="mic-sm" id="mic-comp-tags" onclick="startTagVoice('comp-tags','comp-tags-hint','mic-comp-tags')" aria-label="Voice input" style="margin-top:4px">
+          <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"><rect x="9" y="2" width="6" height="12" rx="3"/><path d="M5 10a7 7 0 0 0 14 0"/><line x1="12" y1="19" x2="12" y2="22"/><line x1="8" y1="22" x2="16" y2="22"/></svg>
+        </button>
+      </div>
+      <div class="mic-hint" id="comp-tags-hint"></div>
+    </div>
+
+    <div class="section">
+      <p class="section-title">Avoidance</p>
+      <div class="tag-row">
+        <div class="tag-grid" id="avoid-tags">
+          <div class="tag" onclick="toggleTag(this)">Places</div>
+          <div class="tag" onclick="toggleTag(this)">People</div>
+          <div class="tag" onclick="toggleTag(this)">Activities</div>
+          <div class="tag" onclick="toggleTag(this)">Responsibilities</div>
+          <div class="tag" onclick="toggleTag(this)">Conversations</div>
+        </div>
+        <button class="mic-sm" id="mic-avoid-tags" onclick="startTagVoice('avoid-tags','avoid-tags-hint','mic-avoid-tags')" aria-label="Voice input" style="margin-top:4px">
+          <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"><rect x="9" y="2" width="6" height="12" rx="3"/><path d="M5 10a7 7 0 0 0 14 0"/><line x1="12" y1="19" x2="12" y2="22"/><line x1="8" y1="22" x2="16" y2="22"/></svg>
+        </button>
+      </div>
+      <div class="mic-hint" id="avoid-tags-hint"></div>
+    </div>
+
+    <div class="section">
+      <p class="section-title">Notes</p>
+      <div class="notes-row">
+        <textarea id="notes" placeholder="Anything else on your mind…"></textarea>
+        <button class="notes-mic" id="mic-notes" onclick="startNotesVoice()" aria-label="Voice input for notes">
+          <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"><rect x="9" y="2" width="6" height="12" rx="3"/><path d="M5 10a7 7 0 0 0 14 0"/><line x1="12" y1="19" x2="12" y2="22"/><line x1="8" y1="22" x2="16" y2="22"/></svg>
+        </button>
+      </div>
+      <div class="mic-hint" id="notes-hint"></div>
+    </div>
+
+    <button class="submit-btn" onclick="submitCheckin()">Save check-in</button>
+  </div>
+
+  <div id="tab-history" style="display:none">
+    <div class="metric-grid">
+      <div class="metric"><div class="metric-label">Check-ins</div><div class="metric-val" id="m-count">0</div></div>
+      <div class="metric"><div class="metric-label">Avg anxiety</div><div class="metric-val" id="m-anxiety">—</div></div>
+      <div class="metric"><div class="metric-label">Avg thoughts</div><div class="metric-val" id="m-thoughts">—</div></div>
+      <div class="metric"><div class="metric-label">Avg comp hrs</div><div class="metric-val" id="m-comp">—</div></div>
+    </div>
+    <div class="section">
+      <div class="log-scroll" id="log-list"><div class="no-log">No check-ins yet.</div></div>
+    </div>
+  </div>
+
+  <div id="tab-trends" style="display:none">
+    <div class="section">
+      <p class="section-title">Anxiety & thought distress</p>
+      <div class="legend">
+        <span><span class="legend-dot" style="background:#534AB7"></span>Anxiety</span>
+        <span><span class="legend-dot" style="background:#D85A30;opacity:0.7"></span>Thought distress</span>
+      </div>
+      <div style="position:relative;width:100%;height:220px">
+        <canvas id="trend-chart" role="img" aria-label="Line chart of anxiety and thought distress"></canvas>
+      </div>
+    </div>
+    <div class="section">
+      <p class="section-title">Compulsion time (hrs)</p>
+      <div style="position:relative;width:100%;height:180px">
+        <canvas id="comp-chart" role="img" aria-label="Bar chart of compulsion hours"></canvas>
+      </div>
+    </div>
+    <div id="no-trend-msg" style="display:none;color:#888780;font-size:13px;text-align:center;padding:1.5rem 0">Log at least 2 check-ins to see trends.</div>
+  </div>
+</div>
+
+<script src="https://cdnjs.cloudflare.com/ajax/libs/Chart.js/4.4.1/chart.umd.js"></script>
+<script>
+// Register service worker
+if ('serviceWorker' in navigator) {
+  navigator.serviceWorker.register('/sw.js').catch(() => {});
+}
+
+let checkinHistory = JSON.parse(localStorage.getItem('ocd_checkins') || '[]');
+let trendChart, compChart;
+let activeRecognition = null;
+let activeMicId = null;
+
+const WORD_NUMS = {zero:0,one:1,two:2,three:3,four:4,five:5,six:6,seven:7,eight:8,nine:9,ten:10};
+function wordToNum(s) {
+  const w = s.toLowerCase();
+  if (WORD_NUMS[w] !== undefined) return WORD_NUMS[w];
+  const n = parseInt(s);
+  return isNaN(n) ? null : n;
+}
+function firstNumber(text) {
+  const m = text.match(/\b(zero|one|two|three|four|five|six|seven|eight|nine|ten|\d+)\b/i);
+  return m ? wordToNum(m[1]) : null;
+}
+
+function stopActive() {
+  if (activeRecognition) { try { activeRecognition.stop(); } catch(e){} activeRecognition = null; }
+  if (activeMicId) { document.getElementById(activeMicId)?.classList.remove('listening'); activeMicId = null; }
+}
+
+function makeSR() {
+  const SR = window.SpeechRecognition || window.webkitSpeechRecognition;
+  if (!SR) return null;
+  const r = new SR();
+  r.lang = 'en-US';
+  r.interimResults = true;
+  r.continuous = false;
+  return r;
+}
+
+function setSlider(sliderId, valId, val, max) {
+  const clamped = Math.max(0, Math.min(max, val));
+  const el = document.getElementById(sliderId);
+  el.value = clamped;
+  document.getElementById(valId).textContent = clamped;
+  el.classList.remove('highlight-flash');
+  void el.offsetWidth;
+  el.classList.add('highlight-flash');
+}
+
+function setHint(hintId, msg, isActive) {
+  const el = document.getElementById(hintId);
+  if (!el) return;
+  el.textContent = msg;
+  el.className = 'mic-hint' + (isActive ? ' active' : '');
+}
+
+function startFieldVoice(sliderId, valId, max, hintId, micId) {
+  if (!makeSR()) { setHint(hintId, 'Speech not supported — try Safari on iOS 17+', false); return; }
+  if (activeMicId === micId) { stopActive(); setHint(hintId, '', false); return; }
+  stopActive();
+  const r = makeSR();
+  activeRecognition = r; activeMicId = micId;
+  document.getElementById(micId).classList.add('listening');
+  setHint(hintId, 'Listening… say a number 0–' + max, true);
+  let finalTranscript = '';
+  r.onresult = e => {
+    let interim = '';
+    for (let i = e.resultIndex; i < e.results.length; i++) {
+      if (e.results[i].isFinal) finalTranscript += e.results[i][0].transcript;
+      else interim = e.results[i][0].transcript;
+    }
+    setHint(hintId, 'Heard: "' + (finalTranscript || interim) + '"', true);
+  };
+  r.onend = () => {
+    document.getElementById(micId)?.classList.remove('listening');
+    activeRecognition = null; activeMicId = null;
+    const num = firstNumber(finalTranscript);
+    if (num !== null) { setSlider(sliderId, valId, num, max); setHint(hintId, 'Set to ' + Math.max(0,Math.min(max,num)), false); }
+    else { setHint(hintId, finalTranscript ? 'No number found — try again' : '', false); }
+  };
+  r.onerror = e => { document.getElementById(micId)?.classList.remove('listening'); activeRecognition=null; activeMicId=null; setHint(hintId,'Error: '+e.error,false); };
+  r.start();
+}
+
+function startTagVoice(containerId, hintId, micId) {
+  if (!makeSR()) { setHint(hintId, 'Speech not supported', false); return; }
+  if (activeMicId === micId) { stopActive(); setHint(hintId, '', false); return; }
+  stopActive();
+  const r = makeSR();
+  activeRecognition = r; activeMicId = micId;
+  document.getElementById(micId).classList.add('listening');
+  setHint(hintId, 'Listening… name the types', true);
+  const compMap = [
+    {keywords:['check'],label:'Checking'},{keywords:['count'],label:'Counting'},
+    {keywords:['clean'],label:'Cleaning'},{keywords:['order','arrang'],label:'Ordering'},
+    {keywords:['reassur'],label:'Reassurance-seeking'},{keywords:['mental','review'],label:'Mental reviewing'},
+    {keywords:['other'],label:'Other'},
+  ];
+  const avoidMap = [
+    {keywords:['place','location'],label:'Places'},{keywords:['people','person','social'],label:'People'},
+    {keywords:['activit','doing'],label:'Activities'},{keywords:['responsib','work','task'],label:'Responsibilities'},
+    {keywords:['convers','talk','speak'],label:'Conversations'},
+  ];
+  const map = containerId === 'comp-tags' ? compMap : avoidMap;
+  let finalTranscript = '';
+  r.onresult = e => {
+    let interim = '';
+    for (let i = e.resultIndex; i < e.results.length; i++) {
+      if (e.results[i].isFinal) finalTranscript += e.results[i][0].transcript;
+      else interim = e.results[i][0].transcript;
+    }
+    setHint(hintId, 'Heard: "' + (finalTranscript || interim) + '"', true);
+  };
+  r.onend = () => {
+    document.getElementById(micId)?.classList.remove('listening');
+    activeRecognition=null; activeMicId=null;
+    if (!finalTranscript) { setHint(hintId,'',false); return; }
+    const t = finalTranscript.toLowerCase();
+    const matched = [];
+    document.querySelectorAll('#'+containerId+' .tag').forEach(tag => {
+      const entry = map.find(m => m.label===tag.textContent);
+      if (entry && entry.keywords.some(k=>t.includes(k))) { tag.classList.add('active'); matched.push(tag.textContent); }
+    });
+    setHint(hintId, matched.length ? 'Selected: '+matched.join(', ') : 'No matches — tap tags manually', false);
+  };
+  r.onerror = e => { document.getElementById(micId)?.classList.remove('listening'); activeRecognition=null; activeMicId=null; setHint(hintId,'Error: '+e.error,false); };
+  r.start();
+}
+
+function startNotesVoice() {
+  const micId='mic-notes', hintId='notes-hint';
+  if (!makeSR()) { setHint(hintId,'Speech not supported',false); return; }
+  if (activeMicId===micId) { stopActive(); setHint(hintId,'',false); return; }
+  stopActive();
+  const SR = window.SpeechRecognition || window.webkitSpeechRecognition;
+  const r = new SR();
+  r.lang='en-US'; r.interimResults=true; r.continuous=true;
+  activeRecognition=r; activeMicId=micId;
+  document.getElementById(micId).classList.add('listening');
+  setHint(hintId,'Listening… tap mic again to stop',true);
+  const textarea = document.getElementById('notes');
+  const base = textarea.value;
+  let committed = base;
+  r.onresult = e => {
+    let fin='', inter='';
+    for (let i=e.resultIndex; i<e.results.length; i++) {
+      if (e.results[i].isFinal) fin += e.results[i][0].transcript+' ';
+      else inter += e.results[i][0].transcript;
+    }
+    if (fin) { committed = (committed+' '+fin).trim(); }
+    textarea.value = inter ? (committed+' '+inter).trim() : committed;
+  };
+  r.onend = () => { document.getElementById(micId)?.classList.remove('listening'); activeRecognition=null; activeMicId=null; setHint(hintId,'',false); };
+  r.onerror = e => { document.getElementById(micId)?.classList.remove('listening'); activeRecognition=null; activeMicId=null; setHint(hintId,'Error: '+e.error,false); };
+  r.start();
+}
+
+function showTab(t) {
+  ['checkin','history','trends'].forEach((id,i) => {
+    document.getElementById('tab-'+id).style.display = id===t ? 'block' : 'none';
+    document.querySelectorAll('.tab')[i].className = 'tab'+(id===t?' active':'');
+  });
+  if (t==='history') renderHistory();
+  if (t==='trends') renderTrends();
+}
+
+function toggleTag(el) { el.classList.toggle('active'); }
+
+function getActiveTags(id) {
+  return Array.from(document.querySelectorAll('#'+id+' .tag.active')).map(t=>t.textContent);
+}
+
+function submitCheckin() {
+  stopActive();
+  const entry = {
+    ts: Date.now(),
+    anxiety: parseInt(document.getElementById('anxiety').value),
+    thoughtFreq: parseInt(document.getElementById('thought-freq').value),
+    thoughtDist: parseInt(document.getElementById('thought-dist').value),
+    compTime: parseInt(document.getElementById('comp-time').value),
+    compTypes: getActiveTags('comp-tags'),
+    avoidance: getActiveTags('avoid-tags'),
+    notes: document.getElementById('notes').value.trim()
+  };
+  checkinHistory.unshift(entry);
+  localStorage.setItem('ocd_checkins', JSON.stringify(checkinHistory));
+  document.querySelectorAll('.tag.active').forEach(t=>t.classList.remove('active'));
+  document.getElementById('notes').value='';
+  [['anxiety','anxiety-val',5],['thought-freq','tf-val',3],['thought-dist','td-val',3],['comp-time','ct-val',1]].forEach(([id,vid,def])=>{
+    document.getElementById(id).value=def; document.getElementById(vid).textContent=def;
+  });
+  ['anxiety-hint','tf-hint','td-hint','ct-hint','comp-tags-hint','avoid-tags-hint','notes-hint'].forEach(id=>setHint(id,'',false));
+  showTab('history');
+}
+
+function fmt(ts) {
+  const d=new Date(ts);
+  return d.toLocaleDateString(undefined,{weekday:'short',month:'short',day:'numeric'})+' '+d.toLocaleTimeString(undefined,{hour:'2-digit',minute:'2-digit'});
+}
+
+function renderHistory() {
+  const el=document.getElementById('log-list');
+  if (!checkinHistory.length) { el.innerHTML='<div class="no-log">No check-ins yet.</div>'; return; }
+  const avg=k=>(checkinHistory.reduce((s,e)=>s+e[k],0)/checkinHistory.length).toFixed(1);
+  document.getElementById('m-count').textContent=checkinHistory.length;
+  document.getElementById('m-anxiety').textContent=avg('anxiety');
+  document.getElementById('m-thoughts').textContent=avg('thoughtDist');
+  document.getElementById('m-comp').textContent=avg('compTime');
+  el.innerHTML=checkinHistory.map(e=>`
+    <div class="log-entry">
+      <div class="log-time">${fmt(e.ts)}</div>
+      <div style="margin-top:2px;font-size:13px">Anxiety <strong>${e.anxiety}/10</strong> &middot; Thoughts <strong>${e.thoughtDist}/10</strong> &middot; Compulsions <strong>${e.compTime}h</strong></div>
+      ${[...e.compTypes,...e.avoidance].length?`<div class="log-tags">${[...e.compTypes,...e.avoidance].map(t=>`<span class="log-tag">${t}</span>`).join('')}</div>`:''}
+      ${e.notes?`<div style="margin-top:5px;color:#888780;font-size:12px">${e.notes}</div>`:''}
+    </div>`).join('');
+}
+
+function renderTrends() {
+  if (checkinHistory.length<2) { document.getElementById('no-trend-msg').style.display='block'; return; }
+  document.getElementById('no-trend-msg').style.display='none';
+  const recent=checkinHistory.slice(0,14).reverse();
+  const labels=recent.map(e=>{const d=new Date(e.ts);return d.toLocaleDateString(undefined,{month:'short',day:'numeric'});});
+  if (trendChart) trendChart.destroy();
+  trendChart=new Chart(document.getElementById('trend-chart'),{
+    type:'line',
+    data:{labels,datasets:[
+      {label:'Anxiety',data:recent.map(e=>e.anxiety),borderColor:'#534AB7',backgroundColor:'rgba(83,74,183,0.08)',tension:0.3,fill:true,borderWidth:2,pointRadius:3},
+      {label:'Thought distress',data:recent.map(e=>e.thoughtDist),borderColor:'#D85A30',backgroundColor:'rgba(216,90,48,0.06)',tension:0.3,fill:true,borderWidth:2,borderDash:[4,3],pointRadius:3}
+    ]},
+    options:{responsive:true,maintainAspectRatio:false,scales:{y:{min:0,max:10,ticks:{stepSize:2}}},plugins:{legend:{display:false}}}
+  });
+  if (compChart) compChart.destroy();
+  compChart=new Chart(document.getElementById('comp-chart'),{
+    type:'bar',
+    data:{labels,datasets:[{label:'Hours',data:recent.map(e=>e.compTime),backgroundColor:'rgba(83,74,183,0.5)',borderColor:'#534AB7',borderWidth:1,borderRadius:4}]},
+    options:{responsive:true,maintainAspectRatio:false,scales:{y:{min:0,ticks:{stepSize:1}}},plugins:{legend:{display:false}}}
+  });
+}
+</script>
+</body>
+</html>
