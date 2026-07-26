@@ -282,12 +282,19 @@ function saveHistory() {
   try { localStorage.setItem('ocd_checkins', JSON.stringify(checkinHistory)); } catch (e) {}
 }
 
+// Set once the user has moved past the samples — by saving a real check-in, or
+// by deleting a sample themselves. Until then an empty history gets re-seeded.
+function demoRetired() {
+  try { return localStorage.getItem('ocd_demo_done') === '1'; } catch (e) { return false; }
+}
+function retireDemo() {
+  try { localStorage.setItem('ocd_demo_done', '1'); } catch (e) {}
+}
+
 let stored = null;
 try { stored = JSON.parse(localStorage.getItem('ocd_checkins')); } catch (e) {}
-let checkinHistory;
-if (Array.isArray(stored)) {
-  checkinHistory = stored;
-} else {
+let checkinHistory = Array.isArray(stored) ? stored : [];
+if (!checkinHistory.length && !demoRetired()) {
   checkinHistory = demoEntries();
   saveHistory();
 }
@@ -467,7 +474,8 @@ function submitCheckin() {
     avoidance: getActiveTags('avoid-tags'),
     notes: document.getElementById('notes').value.trim()
   };
-  // First real check-in clears the sample data.
+  // First real check-in clears the sample data for good.
+  retireDemo();
   if (checkinHistory.some(e => e.demo)) checkinHistory = checkinHistory.filter(e => !e.demo);
   checkinHistory.unshift(entry);
   saveHistory();
@@ -489,6 +497,7 @@ function deleteCheckin(i) {
   const e=checkinHistory[i];
   if (!e) return;
   if (!confirm('Delete the check-in from '+fmt(e.ts)+'? This cannot be undone.')) return;
+  if (e.demo) retireDemo(); // don't re-seed samples the user has cleared out
   checkinHistory.splice(i,1);
   saveHistory();
   renderHistory();
