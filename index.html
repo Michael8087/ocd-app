@@ -58,7 +58,9 @@
   .log-del:hover, .log-del:active { background: #FBEBE6; border-color: #D85A30; }
   .log-del:hover svg, .log-del:active svg { color: #D85A30; }
   .log-time { color: #888780; margin-bottom: 4px; }
-  .log-demo { border: 0.5px solid rgba(0,0,0,0.2); border-radius: 8px; padding: 1px 6px; font-size: 10px; text-transform: uppercase; letter-spacing: 0.04em; margin-left: 4px; }
+  .log-demo { background: #FBEBE6; color: #B0451F; border: 0.5px solid rgba(216,90,48,0.35); border-radius: 8px; padding: 1px 6px; font-size: 10px; font-weight: 500; text-transform: uppercase; letter-spacing: 0.04em; margin-left: 4px; }
+  .demo-note { display: flex; align-items: center; gap: 6px; background: #FBEBE6; color: #B0451F; border: 0.5px solid rgba(216,90,48,0.35); border-radius: 10px; padding: 8px 12px; font-size: 12px; margin-bottom: 1rem; }
+  .demo-note svg { width: 14px; height: 14px; flex-shrink: 0; }
   .log-tags { display: flex; flex-wrap: wrap; gap: 4px; margin-top: 4px; }
   .log-tag { background: #EEEDFE; color: #3C3489; border-radius: 10px; padding: 2px 8px; font-size: 11px; }
   .no-log { color: #888780; font-size: 13px; text-align: center; padding: 1.5rem 0; }
@@ -106,7 +108,8 @@
     .log-del { background: #2c2c2a; border-color: rgba(255,255,255,0.15); }
     .log-del:hover, .log-del:active { background: #3a2620; border-color: #D85A30; }
     .log-time { color: #888780; }
-    .log-demo { border-color: rgba(255,255,255,0.2); }
+    .log-demo { background: #3D251C; color: #F0A281; border-color: rgba(216,90,48,0.5); }
+    .demo-note { background: #3D251C; color: #F0A281; border-color: rgba(216,90,48,0.5); }
     .log-tag { background: #26215C; color: #CECBF6; }
     .no-log { color: #888780; }
     textarea { background: #2c2c2a; border-color: rgba(255,255,255,0.15); color: #e8e6df; }
@@ -239,6 +242,10 @@
 
   <div id="tab-trends" style="display:none">
     <div id="trend-charts">
+    <div class="demo-note" id="trend-demo-note" style="display:none">
+      <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><circle cx="12" cy="12" r="10"/><line x1="12" y1="16" x2="12" y2="12"/><line x1="12" y1="8" x2="12.01" y2="8"/></svg>
+      <span>Sample data — replaced by your own once you save a check-in.</span>
+    </div>
     <div class="section">
       <p class="section-title">Anxiety & thought distress</p>
       <div class="legend">
@@ -536,6 +543,7 @@ function renderTrends() {
   }
   document.getElementById('no-trend-msg').style.display='none';
   document.getElementById('trend-charts').style.display='block';
+  document.getElementById('trend-demo-note').style.display=checkinHistory.some(e=>e.demo)?'flex':'none';
   const recent=checkinHistory.slice(0,14).reverse();
   const labels=recent.map(e=>{const d=new Date(e.ts);return d.toLocaleDateString(undefined,{month:'short',day:'numeric'});});
   if (trendChart) trendChart.destroy();
