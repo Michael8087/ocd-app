@@ -1,4 +1,4 @@
-const CACHE = 'ocd-checkin-v1';
+const CACHE = 'ocd-checkin-v2';
 const ASSETS = [
   '/index.html',
   '/manifest.json',
@@ -23,6 +23,21 @@ self.addEventListener('activate', e => {
 });
 
 self.addEventListener('fetch', e => {
+  const isDoc = e.request.mode === 'navigate' || e.request.destination === 'document';
+  if (isDoc) {
+    // Network-first for the app itself, so updates land instead of being pinned
+    // to whatever was cached on first install. Falls back to cache when offline.
+    e.respondWith(
+      fetch(e.request)
+        .then(res => {
+          const copy = res.clone();
+          caches.open(CACHE).then(c => c.put('/index.html', copy)).catch(() => {});
+          return res;
+        })
+        .catch(() => caches.match('/index.html'))
+    );
+    return;
+  }
   e.respondWith(
     caches.match(e.request).then(cached => cached || fetch(e.request).catch(() => caches.match('/index.html')))
   );
