@@ -50,9 +50,15 @@
   .metric { background: #f5f5f3; border-radius: 8px; padding: 0.75rem 1rem; }
   .metric-label { font-size: 12px; color: #888780; margin-bottom: 4px; }
   .metric-val { font-size: 22px; font-weight: 500; }
-  .log-entry { border-bottom: 0.5px solid rgba(0,0,0,0.1); padding: 10px 0; font-size: 13px; }
+  .log-entry { border-bottom: 0.5px solid rgba(0,0,0,0.1); padding: 10px 0; font-size: 13px; display: flex; align-items: flex-start; gap: 10px; }
   .log-entry:last-child { border-bottom: none; }
+  .log-body { flex: 1; min-width: 0; }
+  .log-del { width: 28px; height: 28px; border-radius: 50%; border: 0.5px solid rgba(0,0,0,0.18); background: #fff; cursor: pointer; display: flex; align-items: center; justify-content: center; flex-shrink: 0; transition: background 0.15s, border-color 0.15s; -webkit-tap-highlight-color: transparent; }
+  .log-del svg { width: 13px; height: 13px; color: #888780; }
+  .log-del:hover, .log-del:active { background: #FBEBE6; border-color: #D85A30; }
+  .log-del:hover svg, .log-del:active svg { color: #D85A30; }
   .log-time { color: #888780; margin-bottom: 4px; }
+  .log-demo { border: 0.5px solid rgba(0,0,0,0.2); border-radius: 8px; padding: 1px 6px; font-size: 10px; text-transform: uppercase; letter-spacing: 0.04em; margin-left: 4px; }
   .log-tags { display: flex; flex-wrap: wrap; gap: 4px; margin-top: 4px; }
   .log-tag { background: #EEEDFE; color: #3C3489; border-radius: 10px; padding: 2px 8px; font-size: 11px; }
   .no-log { color: #888780; font-size: 13px; text-align: center; padding: 1.5rem 0; }
@@ -97,7 +103,10 @@
     .metric { background: #383836; }
     .metric-val { color: #e8e6df; }
     .log-entry { border-color: rgba(255,255,255,0.08); }
+    .log-del { background: #2c2c2a; border-color: rgba(255,255,255,0.15); }
+    .log-del:hover, .log-del:active { background: #3a2620; border-color: #D85A30; }
     .log-time { color: #888780; }
+    .log-demo { border-color: rgba(255,255,255,0.2); }
     .log-tag { background: #26215C; color: #CECBF6; }
     .no-log { color: #888780; }
     textarea { background: #2c2c2a; border-color: rgba(255,255,255,0.15); color: #e8e6df; }
@@ -229,6 +238,7 @@
   </div>
 
   <div id="tab-trends" style="display:none">
+    <div id="trend-charts">
     <div class="section">
       <p class="section-title">Anxiety & thought distress</p>
       <div class="legend">
@@ -245,7 +255,8 @@
         <canvas id="comp-chart" role="img" aria-label="Bar chart of compulsion hours"></canvas>
       </div>
     </div>
-    <div id="no-trend-msg" style="display:none;color:#888780;font-size:13px;text-align:center;padding:1.5rem 0">Log at least 2 check-ins to see trends.</div>
+    </div>
+    <div id="no-trend-msg" style="display:none;color:#888780;font-size:13px;text-align:center;padding:1.5rem 0">At least two entries are needed to show a chart.</div>
   </div>
 </div>
 
@@ -256,7 +267,30 @@ if ('serviceWorker' in navigator) {
   navigator.serviceWorker.register('/sw.js').catch(() => {});
 }
 
-let checkinHistory = JSON.parse(localStorage.getItem('ocd_checkins') || '[]');
+// Sample entries shown before the first real check-in; wiped as soon as one is saved.
+function demoEntries() {
+  const day = 86400000, now = Date.now();
+  return [
+    { ts: now-day*1, anxiety:4, thoughtFreq:3, thoughtDist:3, compTime:1, compTypes:['Checking'], avoidance:[], notes:'', demo:true },
+    { ts: now-day*2, anxiety:6, thoughtFreq:5, thoughtDist:5, compTime:2, compTypes:['Checking','Reassurance-seeking'], avoidance:['Places'], notes:'', demo:true },
+    { ts: now-day*3, anxiety:7, thoughtFreq:6, thoughtDist:6, compTime:3, compTypes:['Mental reviewing'], avoidance:['People','Activities'], notes:'', demo:true },
+    { ts: now-day*4, anxiety:5, thoughtFreq:4, thoughtDist:4, compTime:2, compTypes:['Counting'], avoidance:[], notes:'', demo:true }
+  ];
+}
+
+function saveHistory() {
+  try { localStorage.setItem('ocd_checkins', JSON.stringify(checkinHistory)); } catch (e) {}
+}
+
+let stored = null;
+try { stored = JSON.parse(localStorage.getItem('ocd_checkins')); } catch (e) {}
+let checkinHistory;
+if (Array.isArray(stored)) {
+  checkinHistory = stored;
+} else {
+  checkinHistory = demoEntries();
+  saveHistory();
+}
 let trendChart, compChart;
 let activeRecognition = null;
 let activeMicId = null;
@@ -433,8 +467,10 @@ function submitCheckin() {
     avoidance: getActiveTags('avoid-tags'),
     notes: document.getElementById('notes').value.trim()
   };
+  // First real check-in clears the sample data.
+  if (checkinHistory.some(e => e.demo)) checkinHistory = checkinHistory.filter(e => !e.demo);
   checkinHistory.unshift(entry);
-  localStorage.setItem('ocd_checkins', JSON.stringify(checkinHistory));
+  saveHistory();
   document.querySelectorAll('.tag.active').forEach(t=>t.classList.remove('active'));
   document.getElementById('notes').value='';
   [['anxiety','anxiety-val',5],['thought-freq','tf-val',3],['thought-dist','td-val',3],['comp-time','ct-val',1]].forEach(([id,vid,def])=>{
@@ -449,26 +485,48 @@ function fmt(ts) {
   return d.toLocaleDateString(undefined,{weekday:'short',month:'short',day:'numeric'})+' '+d.toLocaleTimeString(undefined,{hour:'2-digit',minute:'2-digit'});
 }
 
+function deleteCheckin(i) {
+  const e=checkinHistory[i];
+  if (!e) return;
+  if (!confirm('Delete the check-in from '+fmt(e.ts)+'? This cannot be undone.')) return;
+  checkinHistory.splice(i,1);
+  saveHistory();
+  renderHistory();
+  if (document.getElementById('tab-trends').style.display!=='none') renderTrends();
+}
+
 function renderHistory() {
   const el=document.getElementById('log-list');
-  if (!checkinHistory.length) { el.innerHTML='<div class="no-log">No check-ins yet.</div>'; return; }
-  const avg=k=>(checkinHistory.reduce((s,e)=>s+e[k],0)/checkinHistory.length).toFixed(1);
+  const avg=k=>checkinHistory.length?(checkinHistory.reduce((s,e)=>s+e[k],0)/checkinHistory.length).toFixed(1):'0.0';
   document.getElementById('m-count').textContent=checkinHistory.length;
   document.getElementById('m-anxiety').textContent=avg('anxiety');
   document.getElementById('m-thoughts').textContent=avg('thoughtDist');
   document.getElementById('m-comp').textContent=avg('compTime');
-  el.innerHTML=checkinHistory.map(e=>`
+  if (!checkinHistory.length) { el.innerHTML='<div class="no-log">No check-ins yet.</div>'; return; }
+  el.innerHTML=checkinHistory.map((e,i)=>`
     <div class="log-entry">
-      <div class="log-time">${fmt(e.ts)}</div>
-      <div style="margin-top:2px;font-size:13px">Anxiety <strong>${e.anxiety}/10</strong> &middot; Thoughts <strong>${e.thoughtDist}/10</strong> &middot; Compulsions <strong>${e.compTime}h</strong></div>
-      ${[...e.compTypes,...e.avoidance].length?`<div class="log-tags">${[...e.compTypes,...e.avoidance].map(t=>`<span class="log-tag">${t}</span>`).join('')}</div>`:''}
-      ${e.notes?`<div style="margin-top:5px;color:#888780;font-size:12px">${e.notes}</div>`:''}
+      <div class="log-body">
+        <div class="log-time">${fmt(e.ts)}${e.demo?' <span class="log-demo">Sample</span>':''}</div>
+        <div style="margin-top:2px;font-size:13px">Anxiety <strong>${e.anxiety}/10</strong> &middot; Thoughts <strong>${e.thoughtDist}/10</strong> &middot; Compulsions <strong>${e.compTime}h</strong></div>
+        ${[...e.compTypes,...e.avoidance].length?`<div class="log-tags">${[...e.compTypes,...e.avoidance].map(t=>`<span class="log-tag">${t}</span>`).join('')}</div>`:''}
+        ${e.notes?`<div style="margin-top:5px;color:#888780;font-size:12px">${e.notes}</div>`:''}
+      </div>
+      <button class="log-del" onclick="deleteCheckin(${i})" aria-label="Delete check-in" title="Delete check-in">
+        <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><polyline points="3 6 5 6 21 6"></polyline><path d="M19 6l-1 14a2 2 0 0 1-2 2H8a2 2 0 0 1-2-2L5 6"></path><path d="M10 11v6M14 11v6"></path><path d="M9 6V4a1 1 0 0 1 1-1h4a1 1 0 0 1 1 1v2"></path></svg>
+      </button>
     </div>`).join('');
 }
 
 function renderTrends() {
-  if (checkinHistory.length<2) { document.getElementById('no-trend-msg').style.display='block'; return; }
+  if (checkinHistory.length<2) {
+    document.getElementById('no-trend-msg').style.display='block';
+    document.getElementById('trend-charts').style.display='none';
+    if (trendChart) { trendChart.destroy(); trendChart=null; }
+    if (compChart) { compChart.destroy(); compChart=null; }
+    return;
+  }
   document.getElementById('no-trend-msg').style.display='none';
+  document.getElementById('trend-charts').style.display='block';
   const recent=checkinHistory.slice(0,14).reverse();
   const labels=recent.map(e=>{const d=new Date(e.ts);return d.toLocaleDateString(undefined,{month:'short',day:'numeric'});});
   if (trendChart) trendChart.destroy();
