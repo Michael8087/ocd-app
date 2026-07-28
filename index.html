@@ -271,7 +271,8 @@
 <script>
 // Register service worker
 if ('serviceWorker' in navigator) {
-  navigator.serviceWorker.register('/sw.js').catch(() => {});
+  // Relative, so the app also works from a project subpath (e.g. GitHub Pages).
+  navigator.serviceWorker.register('sw.js').catch(() => {});
 }
 
 // Sample entries shown before the first real check-in; wiped as soon as one is saved.

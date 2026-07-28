@@ -1,12 +1,16 @@
-const CACHE = 'ocd-checkin-v2';
+const CACHE = 'ocd-checkin-v3';
+
+// Resolved against the worker's own location, so the app works both at a
+// domain root and from a project subpath such as /OCD-app/ on GitHub Pages.
+const INDEX = new URL('index.html', self.location).toString();
 const ASSETS = [
-  '/index.html',
-  '/manifest.json',
-  '/icons/icon-180.png',
-  '/icons/icon-167.png',
-  '/icons/icon-152.png',
-  '/icons/icon-120.png',
-];
+  'index.html',
+  'manifest.json',
+  'icons/icon-180.png',
+  'icons/icon-167.png',
+  'icons/icon-152.png',
+  'icons/icon-120.png',
+].map(p => new URL(p, self.location).toString());
 
 self.addEventListener('install', e => {
   e.waitUntil(
@@ -31,14 +35,14 @@ self.addEventListener('fetch', e => {
       fetch(e.request)
         .then(res => {
           const copy = res.clone();
-          caches.open(CACHE).then(c => c.put('/index.html', copy)).catch(() => {});
+          caches.open(CACHE).then(c => c.put(INDEX, copy)).catch(() => {});
           return res;
         })
-        .catch(() => caches.match('/index.html'))
+        .catch(() => caches.match(INDEX))
     );
     return;
   }
   e.respondWith(
-    caches.match(e.request).then(cached => cached || fetch(e.request).catch(() => caches.match('/index.html')))
+    caches.match(e.request).then(cached => cached || fetch(e.request).catch(() => caches.match(INDEX)))
   );
 });
